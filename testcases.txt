@@ -1,0 +1,94 @@
+TEST CASES:
+
+NOTE: In all workloads, if an error occurs during malloc or free,
+the user is notified through an error message telling them what went wrong.
+
+In some of the workloads (D, E and F), these errors are to be expected
+due to the nature of those workloads.
+
+For more about these error messages, see the readme.pdf.
+
+
+Workload E:
+----------
+
+In this workload, we first malloc chunks of equal size, until the 5000-byte heap reaches capacity and we can no longer malloc.
+As we do this, the resulting pointers are stored inside an array called pointers.
+
+We then free every other chunk, starting with the very first one in the heap.
+Additionally, after freeing each of these pointers, we set them to NULL.
+
+At this point, the array of pointers looks something like this:
+
+pointers             myblock (heap)
+--------            --------------------
+ ADDR0	(NULL)      | Block 0 (Free)   |
+		    |------------------|	
+ ADDR1  -------->   | Block 1 (Active) |
+		    |------------------|
+ ADDR2  (NULL)      | Block 2 (Free)   |
+		    |------------------|
+ ADDR3  -------->   | Block 3 (Active) |
+		    |------------------|
+  ...               |                  |
+                    |        ...       |
+                    |------------------|
+ ADDR_N -------->   | Block N          |
+        (or NULL)   | (Free if N even, |
+--------            | Active if N odd) |
+                    --------------------
+
+
+Now, for each pointer which is freed (pointers[0], pointers[2], etc.), we call
+malloc with a pre-calculated size such that:
+
+1. It is small enough that the chunk will fit in a freed chunk.
+2. It is big enough so that **NO splitting** will occur in the freed chunks.
+   (In other words, the user will receive slightly MORE bytes than they asked for.)
+
+Doing this causes each even entry of the pointers array to point to a newly-malloced
+chunk. In particular, the heap should now look the SAME as the way it did before calling free
+on every other chunk. This is because no splitting of blocks has occurred, so there are
+the same amount of chunks, and no chunk has changed in size. All chunks are now active,
+like they were before the freeing took place.
+
+Finally, to end the workload, we free all of the chunks and set the pointers in the array to NULL.
+
+
+Workload F:
+----------
+
+
+This workload is similar to Workload E, but with a very significant difference.
+
+We still begin by mallocing the heap to capacity and then freeing every other chunk.
+
+However, now, for each pointer that is freed (pointers[0], pointers[2], etc.) we call malloc with a
+pre-calculated size such that:
+
+1. It is small enough that the chunk will fit in a freed chunk.
+2. It is **small enough** that splitting WILL occur in the freed chunks,
+   BUT ALSO **big enough** that the new chunk will not be able to hold
+   the next-malloced chunk (the new chunk will be too small to hold it)
+
+
+Here is an example of what this looks like for a given free chunk:
+
+  Before splitting:
+----------------------
+|  Old		     |
+|   chunk (free)     |
+----------------------
+   
+  After splitting:
+---------------------
+| Active  | Free    |  <------ This free chunk is NOT big enough to hold
+| Chunk   | Chunk   |          the next-malloced chunk (we did this on purpose).
+---------------------
+
+
+This process is continued for each free chunk. At this point, there should be MORE chunks in the heap
+than there were before we freed, since splitting occurred.
+
+At the end, as we did in Workload E, we free every chunk and set the pointers in the array to NULL.
+
