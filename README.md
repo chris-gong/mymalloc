@@ -3,7 +3,7 @@ CS214 Rutgers Systems Programming Assignment 1: Making a better version of free 
 
 Runs on Rutgers iLab machines (Linux x86_64 bit architecture).
 
-To run the program, simple call the make command
+To run the program, simply call the make command
 ```
 make
 ```
